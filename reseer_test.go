@@ -19,9 +19,10 @@ func TestWatch(t *testing.T) {
     s, err := New(
         "data_test/rsrc_tracker.csv",
         []string{
-            "data/dir-a",
-            "data/dir-b",
+            "data_test/dir-a",
+            "data_test/dir-b",
         },
+        onChange,
     )
 
     if err != nil {
@@ -36,4 +37,8 @@ func TestWatch(t *testing.T) {
     fmt.Println("...run time elapsed, finishing...")
     s.Stop()
     fmt.Println("FINISHED.")
+}
+
+func onChange() {
+    fmt.Println("===> Client callback on version change")
 }

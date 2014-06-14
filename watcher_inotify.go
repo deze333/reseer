@@ -171,7 +171,7 @@ func (w *WatchInotify) watch(id int) {
 				return
 			}
             //fmt.Println("[reseer.inotify] Change in:", ev)
-			w.scheduleCallback(id, ev.Name)
+			w.scheduleCallback(id, dir)
 
 		case err := <-watcher.Error:
 			fmt.Println("[reseer.inotify] ERROR:", err)
@@ -183,14 +183,20 @@ func (w *WatchInotify) watch(id int) {
 // Calls callback only after duration elapsed since last change event.
 // Prevents from lots of events firing at the same time.
 func (w *WatchInotify) scheduleCallback(id int, dir string) {
+
+    // Schedule a new callback via time hasn't been scheduled yet
     if w.timer == nil {
         w.timer = time.NewTimer(w.damper)
+
+        // Create function waiting for timer event
 		go func() {
 			<-w.timer.C
 			w.callback(dir)
 			w.timer = nil
 		}()
+
 	} else {
+        // Restart existing timer
 		w.timer.Reset(w.damper)
 	}
 }

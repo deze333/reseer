@@ -27,13 +27,14 @@ type Seer struct {
     dirs []string
     entries [][]string
     wInotify *WatchInotify
+    clientCallback func()
 }
 
 //------------------------------------------------------------
 // Seer New
 //------------------------------------------------------------
 
-func New(filename string, dirs []string) (s *Seer, err error) {
+func New(filename string, dirs []string, cb func()) (s *Seer, err error) {
     // Validate
     if filename == "" {
         err = fmt.Errorf("[reseer] ERROR-ABORT: Tracking file must be provided")
@@ -57,6 +58,7 @@ func New(filename string, dirs []string) (s *Seer, err error) {
         isValid: true,
         Filename: filename,
         dirs: dirs,
+        clientCallback: cb,
     }
 
     // Start watching
@@ -127,7 +129,7 @@ func (s *Seer) start() (err error) {
     // Start watching discovered dirs for changes
     s.wInotify, err = newInotify(s.onChange, s.dirs)
     if err != nil {
-        err = fmt.Errorf("[reseer] ERROR-ABORT: Can't creating inotify watcher: %v", err)
+        err = fmt.Errorf("[reseer] ERROR-ABORT: Can't create inotify watcher: %v", err)
         return
     }
 
@@ -154,7 +156,7 @@ func (s *Seer) resetTracker() (err error) {
 
 // Callback function on a change in watched directories.
 // Called from goroutine run by watcher.
-func (s *Seer) onChange(filename string) {
+func (s *Seer) onChange(dir string) {
     var err error
 
     // Overview:
@@ -167,7 +169,7 @@ func (s *Seer) onChange(filename string) {
 
     if err = s.compareDirs(); err != nil {
         if err.Error() == ErrDiff.Error() {
-            fmt.Println("[reseer] Version changed to", s.version + 1, "due to change in:", filename)
+            fmt.Println("[reseer] Version changed to", s.version + 1, "due to change in:", dir)
             s.setVersion(s.version + 1)
         }
     }
@@ -186,6 +188,11 @@ func (s *Seer) onChange(filename string) {
     err = s.wInotify.review(s.dirs)
     if err != nil {
         panic(fmt.Sprintf("[reseer] ERROR-ABORT: onChange: restarting inotify watcher, err: %v", err))
+    }
+
+    // Fire client callback
+    if s.clientCallback != nil {
+        s.clientCallback()
     }
 }
 
