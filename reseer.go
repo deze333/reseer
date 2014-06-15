@@ -27,14 +27,15 @@ type Seer struct {
     dirs []string
     entries [][]string
     wInotify *WatchInotify
-    clientCallback func()
+    clientCallback func(string)
 }
 
 //------------------------------------------------------------
 // Seer New
 //------------------------------------------------------------
 
-func New(filename string, dirs []string, cb func()) (s *Seer, err error) {
+func New(filename string, dirs []string, cb func(string)) (s *Seer, err error) {
+
     // Validate
     if filename == "" {
         err = fmt.Errorf("[reseer] ERROR-ABORT: Tracking file must be provided")
@@ -192,7 +193,7 @@ func (s *Seer) onChange(dir string) {
 
     // Fire client callback
     if s.clientCallback != nil {
-        s.clientCallback()
+        s.clientCallback(s.versionTxt)
     }
 }
 
@@ -309,5 +310,6 @@ func (s *Seer) loadTracker() error {
     }
     s.versionTxt = vs
 
+    fmt.Println("LOADED TRACKER AT V:", s.version, s.versionTxt)
     return err
 }

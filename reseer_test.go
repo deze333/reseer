@@ -39,6 +39,6 @@ func TestWatch(t *testing.T) {
     fmt.Println("FINISHED.")
 }
 
-func onChange() {
-    fmt.Println("===> Client callback on version change")
+func onChange(ver string) {
+    fmt.Println("===> Client callback on version change to:", ver)
 }

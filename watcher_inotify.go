@@ -39,7 +39,7 @@ func newInotify(callback func(string), dirs []string) (w *WatchInotify, err erro
 		damper:   3 * time.Second,
 	}
 
-	w.startRetry(ds.AllDirs, dirs)
+	err = w.startRetry(ds.AllDirs, dirs)
     fmt.Println("[reseer.inotify] Started OK, watched directories =", len(w.watchers))
     return
 }
@@ -60,17 +60,22 @@ func (w *WatchInotify) stop() {
 }
 
 // Starts new inotify watchers for given set of directories.
-func (w *WatchInotify) startRetry(dirs, coreDirs []string) {
-    var err error
+func (w *WatchInotify) startRetry(dirs, coreDirs []string) (err error) {
+
     if err = w.start(dirs); err == nil {
         return
     }
 
-    for err != nil {
+    // Make a few retries
+    for i := 0; i < 3; i++ {
         fmt.Println("[reseer.inotify] WARNING: Will attempt to restart again in a few seconds\n\tdue to error:", err)
         time.Sleep(2 * time.Second)
         err = w.start(NewDirScanner(coreDirs).AllDirs)
+        if err == nil {
+            return
+        }
     }
+    return
 }
 
 // Starts new inotify watchers for given set of directories.
