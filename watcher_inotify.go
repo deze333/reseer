@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"code.google.com/p/go.exp/inotify"
+	"code.google.com/p/go.exp/fsnotify"
 )
 
 //------------------------------------------------------------
 // Watcher inotify
 //------------------------------------------------------------
-
+// TODO Rename to reflect it uses generic fsnotify
 type WatchInotify struct {
 	callback func(string)
 	count    int
 	nextId   int
-	watchers map[int]*inotify.Watcher
+	watchers map[int]*fsnotify.Watcher
 	dirs     map[int]string
 	timer    *time.Timer
 	damper   time.Duration
@@ -84,12 +84,11 @@ func (w *WatchInotify) start(dirs []string) (err error) {
 	count := len(dirs)
 	w.nextId = 0
 	w.dirs = make(map[int]string, count)
-	w.watchers = make(map[int]*inotify.Watcher, count)
+	w.watchers = make(map[int]*fsnotify.Watcher, count)
 
 	// Add each directory to a separate watcher
 	for _, dir := range dirs {
-		err = w.add(dir,
-			inotify.IN_CREATE|inotify.IN_MOVE|inotify.IN_DELETE|inotify.IN_CLOSE_WRITE)
+		err = w.add(dir)
 		if err != nil {
 			w.stop()
 			return
@@ -136,18 +135,14 @@ func (w *WatchInotify) review(dirs []string) (err error) {
 }
 
 // Adds watcher for one directory.
-func (w *WatchInotify) add(dir string, flags uint32) (err error) {
-	var watcher *inotify.Watcher
-	watcher, err = inotify.NewWatcher()
+func (w *WatchInotify) add(dir string) (err error) {
+	var watcher *fsnotify.Watcher
+	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
 
-	if flags != 0 {
-		err = watcher.AddWatch(dir, flags)
-	} else {
-		err = watcher.Watch(dir)
-	}
+	err = watcher.Watch(dir)
 
 	if err != nil {
 		return err
