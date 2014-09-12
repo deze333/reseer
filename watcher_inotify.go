@@ -182,7 +182,9 @@ func (w *WatchInotify) watch(id int) {
 			w.scheduleCallback(id, dir)
 
 		case err := <-watcher.Error:
-			fmt.Println("[reseer.inotify] ERROR:", err)
+			if err != nil {
+				fmt.Println("[reseer.inotify] ERROR:", err)
+			}
 		}
 	}
 }
