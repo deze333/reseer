@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"code.google.com/p/go.exp/fsnotify"
+	"github.com/fsnotify/fsnotify"
 )
 
 //------------------------------------------------------------
