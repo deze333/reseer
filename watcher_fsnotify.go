@@ -149,14 +149,14 @@ func (w *WatchFsnotify) add(dir string) (err error) {
 
 	w.watchers[w.nextId] = watcher
 	w.dirs[w.nextId] = dir
-	go w.watch(w.nextId)
+	go w.watch(watcher, dir, w.nextId)
 
 	w.nextId++
 	return
 }
 
 // Go routine that waits for an change event and notifies via callback
-func (w *WatchFsnotify) watch(id int) {
+func (w *WatchFsnotify) watch(watcher *fsnotify.Watcher, dir string, id int) {
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -164,8 +164,8 @@ func (w *WatchFsnotify) watch(id int) {
 		}
 	}()
 
-	watcher := w.watchers[id]
-	dir := w.dirs[id]
+	//watcher := w.watchers[id]
+	//dir := w.dirs[id]
 	if watcher == nil || dir == "" {
 		return
 	}
