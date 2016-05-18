@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"code.google.com/p/go.exp/fsnotify"
+	"github.com/fsnotify/fsnotify"
 )
 
 //------------------------------------------------------------
@@ -142,7 +142,7 @@ func (w *WatchInotify) add(dir string) (err error) {
 		return err
 	}
 
-	err = watcher.Watch(dir)
+	err = watcher.Add(dir)
 
 	if err != nil {
 		return err
@@ -170,23 +170,28 @@ func (w *WatchInotify) watch(id int) {
 	if watcher == nil || dir == "" {
 		return
 	}
+
 	//fmt.Println("[reseer.inotify] Watching dir:", dir)
+WatchLoop:
 	for {
 		select {
-		case ev := <-watcher.Event:
-			if ev == nil {
-				fmt.Println("[reseer.inotify] Closed for dir:", dir)
-				return
+		case _, ok := <-watcher.Events:
+			if !ok {
+				break WatchLoop
 			}
 			//fmt.Println("[reseer.inotify] Change in:", ev)
 			w.scheduleCallback(id, dir)
 
-		case err := <-watcher.Error:
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				break WatchLoop
+			}
 			if err != nil {
 				fmt.Println("[reseer.inotify] ERROR:", err)
 			}
 		}
 	}
+	fmt.Println("[reseer.inotify] Closed for dir:", dir)
 }
 
 // Event damper.
