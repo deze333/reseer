@@ -20,13 +20,13 @@ var (
 //------------------------------------------------------------
 
 type Seer struct {
-    isValid bool
-    Filename string
-    version int
-    versionTxt string
-    dirs []string
-    entries [][]string
-    wInotify *WatchInotify
+    isValid        bool
+    Filename       string
+    version        int
+    versionTxt     string
+    dirs           []string
+    entries        [][]string
+    wFsnotify      *WatchFsnotify
     clientCallback func(string)
 }
 
@@ -78,9 +78,9 @@ func (s *Seer) VersionTxt() (vtxt string) {
 }
 
 func (s *Seer) Stop() {
-    if s.wInotify != nil {
-        fmt.Println("[reseer] Stop request, waiting for inotify stop...")
-        s.wInotify.stop()
+    if s.wFsnotify != nil {
+        fmt.Println("[reseer] Stop request, waiting for fsnotify stop...")
+        s.wFsnotify.stop()
         time.Sleep(1 * time.Second)
     }
 }
@@ -128,9 +128,9 @@ func (s *Seer) start() (err error) {
     }
 
     // Start watching discovered dirs for changes
-    s.wInotify, err = newInotify(s.onChange, s.dirs)
+    s.wFsnotify, err = newFsnotify(s.onChange, s.dirs)
     if err != nil {
-        err = fmt.Errorf("[reseer] ERROR-ABORT: Can't create inotify watcher: %v", err)
+        err = fmt.Errorf("[reseer] ERROR-ABORT: Can't create fsnotify watcher: %v", err)
         return
     }
 
@@ -186,9 +186,9 @@ func (s *Seer) onChange(dir string) {
     }
 
     // Ask watcher to review directories
-    err = s.wInotify.review(s.dirs)
+    err = s.wFsnotify.review(s.dirs)
     if err != nil {
-        panic(fmt.Sprintf("[reseer] ERROR-ABORT: onChange: restarting inotify watcher, err: %v", err))
+        panic(fmt.Sprintf("[reseer] ERROR-ABORT: onChange: restarting fsnotify watcher, err: %v", err))
     }
 
     // Fire client callback

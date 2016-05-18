@@ -8,10 +8,9 @@ import (
 )
 
 //------------------------------------------------------------
-// Watcher inotify
+// Watcher fsnotify
 //------------------------------------------------------------
-// TODO Rename to reflect it uses generic fsnotify
-type WatchInotify struct {
+type WatchFsnotify struct {
 	callback func(string)
 	count    int
 	nextId   int
@@ -22,35 +21,35 @@ type WatchInotify struct {
 }
 
 //------------------------------------------------------------
-// Watcher inotify new
+// Watcher fsnotify new
 //------------------------------------------------------------
 
-func newInotify(callback func(string), dirs []string) (w *WatchInotify, err error) {
+func newFsnotify(callback func(string), dirs []string) (w *WatchFsnotify, err error) {
 	ds := NewDirScanner(dirs)
 	count := len(ds.AllDirs)
 
 	if count == 0 {
-		err = fmt.Errorf("[reseer.inotify] FAIL: No directories to watch")
+		err = fmt.Errorf("[reseer.fsnotify] FAIL: No directories to watch")
 		return
 	}
 
 	// Create new watch
-	w = &WatchInotify{
+	w = &WatchFsnotify{
 		callback: callback,
 		damper:   3 * time.Second,
 	}
 
 	err = w.startRetry(ds.AllDirs, dirs)
-	fmt.Println("[reseer.inotify] Started OK, watched directories =", len(w.watchers))
+	fmt.Println("[reseer.fsnotify] Started OK, watched directories =", len(w.watchers))
 	return
 }
 
 //------------------------------------------------------------
-// Watcher inotify functions
+// Watcher fsnotify functions
 //------------------------------------------------------------
 
 // Close all watchers.
-func (w *WatchInotify) stop() {
+func (w *WatchFsnotify) stop() {
 	for i := 0; i < len(w.watchers); i++ {
 		watcher := w.watchers[i]
 		if watcher != nil {
@@ -60,8 +59,8 @@ func (w *WatchInotify) stop() {
 	}
 }
 
-// Starts new inotify watchers for given set of directories.
-func (w *WatchInotify) startRetry(dirs, coreDirs []string) (err error) {
+// Starts new fsnotify watchers for given set of directories.
+func (w *WatchFsnotify) startRetry(dirs, coreDirs []string) (err error) {
 
 	if err = w.start(dirs); err == nil {
 		return
@@ -69,7 +68,7 @@ func (w *WatchInotify) startRetry(dirs, coreDirs []string) (err error) {
 
 	// Make a few retries
 	for i := 0; i < 3; i++ {
-		fmt.Println("[reseer.inotify] WARNING: Will attempt to restart again in a few seconds\n\tdue to error:", err)
+		fmt.Println("[reseer.fsnotify] WARNING: Will attempt to restart again in a few seconds\n\tdue to error:", err)
 		time.Sleep(2 * time.Second)
 		err = w.start(NewDirScanner(coreDirs).AllDirs)
 		if err == nil {
@@ -79,8 +78,8 @@ func (w *WatchInotify) startRetry(dirs, coreDirs []string) (err error) {
 	return
 }
 
-// Starts new inotify watchers for given set of directories.
-func (w *WatchInotify) start(dirs []string) (err error) {
+// Starts new fsnotify watchers for given set of directories.
+func (w *WatchFsnotify) start(dirs []string) (err error) {
 	count := len(dirs)
 	w.nextId = 0
 	w.dirs = make(map[int]string, count)
@@ -99,7 +98,7 @@ func (w *WatchInotify) start(dirs []string) (err error) {
 
 // Checks if number of directories changed.
 // If yes, restarts watchers for new set of directories.
-func (w *WatchInotify) review(dirs []string) (err error) {
+func (w *WatchFsnotify) review(dirs []string) (err error) {
 	ds := NewDirScanner(dirs)
 	count := len(ds.AllDirs)
 
@@ -125,17 +124,17 @@ func (w *WatchInotify) review(dirs []string) (err error) {
 	}
 
 	// Stop all existing
-	// Give some time to inotify to execute (not critical)
+	// Give some time to fsnotify to execute (not critical)
 	// Restart with a new set of directories
 	w.stop()
 	time.Sleep(2 * time.Second)
 	w.startRetry(ds.AllDirs, dirs)
-	fmt.Println("[reseer.inotify] Restarted OK, n =", len(w.watchers))
+	fmt.Println("[reseer.fsnotify] Restarted OK, n =", len(w.watchers))
 	return
 }
 
 // Adds watcher for one directory.
-func (w *WatchInotify) add(dir string) (err error) {
+func (w *WatchFsnotify) add(dir string) (err error) {
 	var watcher *fsnotify.Watcher
 	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
@@ -157,11 +156,11 @@ func (w *WatchInotify) add(dir string) (err error) {
 }
 
 // Go routine that waits for an change event and notifies via callback
-func (w *WatchInotify) watch(id int) {
+func (w *WatchFsnotify) watch(id int) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println("[reseer.inotify] Abnormal exit")
+			fmt.Println("[reseer.fsnotify] Abnormal exit")
 		}
 	}()
 
@@ -171,7 +170,7 @@ func (w *WatchInotify) watch(id int) {
 		return
 	}
 
-	//fmt.Println("[reseer.inotify] Watching dir:", dir)
+	//fmt.Println("[reseer.fsnotify] Watching dir:", dir)
 WatchLoop:
 	for {
 		select {
@@ -179,7 +178,7 @@ WatchLoop:
 			if !ok {
 				break WatchLoop
 			}
-			//fmt.Println("[reseer.inotify] Change in:", ev)
+			//fmt.Println("[reseer.fsnotify] Change in:", ev)
 			w.scheduleCallback(id, dir)
 
 		case err, ok := <-watcher.Errors:
@@ -187,17 +186,17 @@ WatchLoop:
 				break WatchLoop
 			}
 			if err != nil {
-				fmt.Println("[reseer.inotify] ERROR:", err)
+				fmt.Println("[reseer.fsnotify] ERROR:", err)
 			}
 		}
 	}
-	fmt.Println("[reseer.inotify] Closed for dir:", dir)
+	fmt.Println("[reseer.fsnotify] Closed for dir:", dir)
 }
 
 // Event damper.
 // Calls callback only after duration elapsed since last change event.
 // Prevents from lots of events firing at the same time.
-func (w *WatchInotify) scheduleCallback(id int, dir string) {
+func (w *WatchFsnotify) scheduleCallback(id int, dir string) {
 
 	// Schedule a new callback via time hasn't been scheduled yet
 	if w.timer == nil {
