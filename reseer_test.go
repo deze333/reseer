@@ -1,9 +1,14 @@
+// To run test with provided example directory:
+// go test
+// To run test with custom directory:
+// go test -dir /path/to/my/directory
+
 package reseer
 
 import (
     "fmt"
     "testing"
-    "time"
+	"flag"
 )
 
 //------------------------------------------------------------
@@ -16,12 +21,29 @@ import (
 func TestWatch(t *testing.T) {
     fmt.Println("\n\n\n\n")
 
-    s, err := New(
-        "data_test/rsrc_tracker.csv",
-        []string{
+	// Define which directory to watch
+	var watchDirs []string
+	if len(paramWatchDir) != 0 {
+		watchDirs = []string{ paramWatchDir }
+
+		fmt.Println("Watching  directory:", paramWatchDir)
+
+		scanner := NewDirScanner(watchDirs)
+		fmt.Println("All watched subdirectories count:", len(scanner.AllDirs))
+
+		fmt.Println("\n\n")
+
+	} else {
+        watchDirs = []string{
             "data_test/dir-a",
             "data_test/dir-b",
-        },
+        }
+	}
+
+	// Create new watcher
+    s, err := New(
+        "data_test/rsrc_tracker.csv",
+		watchDirs,
         onChange,
     )
 
@@ -30,15 +52,23 @@ func TestWatch(t *testing.T) {
         return
     }
 
+    defer s.Stop()
+
     // Keep running for some time
-    var dur time.Duration = 3 * 60 * time.Second
-    fmt.Println("Letting run for", dur)
-    time.Sleep(dur)
-    fmt.Println("...run time elapsed, finishing...")
-    s.Stop()
-    fmt.Println("FINISHED.")
+    fmt.Println("Watching until Ctrl-C...")
+	done := make(chan bool)
+	<-done
 }
 
 func onChange(ver string) {
     fmt.Println("===> Client callback on version change to:", ver)
+}
+
+// Optional parameters for test runs.
+var paramWatchDir string
+
+// Parses optional flags.
+func init() {
+	flag.StringVar(&paramWatchDir, "dir", "", "directory to watch")
+	flag.Parse()
 }
