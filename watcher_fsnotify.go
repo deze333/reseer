@@ -17,6 +17,7 @@ type WatchFsnotify struct {
 	dirs     []string
 	timer    *time.Timer
 	damper   time.Duration
+	done     chan bool
 }
 
 //------------------------------------------------------------
@@ -44,6 +45,7 @@ func newFsnotify(callback func(string), dirs []string) (w *WatchFsnotify, err er
 		watcher:  watcher,
 		callback: callback,
 		damper:   3 * time.Second,
+		done:     make(chan bool),
 	}
 
 	err = w.startRetry(ds.AllDirs, dirs)
@@ -59,6 +61,7 @@ func newFsnotify(callback func(string), dirs []string) (w *WatchFsnotify, err er
 func (w *WatchFsnotify) stop() {
 
 	if w.watcher != nil {
+		w.done <- true
 		w.watcher.Close()
 		w.watcher = nil
 	}
@@ -153,21 +156,30 @@ func (w *WatchFsnotify) watch() {
 
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Println("[reseer.fsnotify] Abnormal exit")
+			fmt.Println("[reseer.fsnotify] Watcher function exited with error:", err)
 		}
 	}()
 
+	WatchLoop:
 	for {
 		select {
 		case event := <-w.watcher.Events:
 			dir, _ := filepath.Split(event.Name)
 			//fmt.Println("[reseer.fsnotify] EVENT: Change in dir:", dir)
-			w.scheduleCallback(dir)
+			if w != nil {
+				w.scheduleCallback(dir)
+			}
 
-		case err := <-w.watcher.Errors:
-			fmt.Println("[reseer.fsnotify] EVENT: ERROR:", err)
+		case <-w.watcher.Errors:
+			//fmt.Println("[reseer.fsnotify] EVENT: ERROR:", err)
+			break
+
+		case <-w.done:
+			fmt.Println("[reseer.fsnotify] Stop requested")
+			break WatchLoop
 		}
 	}
+
 	fmt.Println("[reseer.fsnotify] Watcher function has exited")
 }
 
